@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPU Monitor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        .server-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+        }
+        .server-box {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px;
+            border-radius: 8px;
+            background-color: #fff;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+            width: 350px;
+            text-align: left;
+        }
+        .gpu-box {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 6px;
+            background-color: #f9f9f9;
+            padding: 10px;
+        }
+        .progress-container {
+            width: 100%;
+            background-color: #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+            height: 20px;
+            margin-top: 5px;
+        }
+        .progress-bar {
+            height: 100%;
+            text-align: center;
+            line-height: 20px;
+            color: white;
+            font-weight: bold;
+            border-radius: 5px;
+        }
+    </style>
+    <script>
+        const API_URL = "http://localhost:5000/gpu_status";  // ⚠️ 替换为 Flask 服务器 IP
+
+        async function fetchGPUStatus() {
+            try {
+                const response = await fetch(API_URL);
+                const data = await response.json();
+                const container = document.getElementById("gpu-container");
+                container.innerHTML = "";  // 清空旧数据
+
+                for (const [server, info] of Object.entries(data)) {
+                    const serverDiv = document.createElement("div");
+                    serverDiv.className = "server-box";
+
+                    let content = `<h2>${server}</h2><p><strong>Server:</strong> ${info.server}</p>`;
+                    if (info.status === "error") {
+                        content += `<p style="color: red;">${info.message}</p>`;
+                    } else {
+                        info.gpus.forEach(gpu => {
+                            let utilization = parseInt(gpu.gpu_utilization);
+                            let barColor = utilization < 50 ? "#4CAF50" : utilization < 80 ? "#FFA500" : "#FF0000"; // 颜色：绿色 <50%，橙色 <80%，红色 >80%
+
+                            content += `
+                            <div class="gpu-box">
+                                <p><strong>GPU:</strong> ${gpu.name}</p>
+                                <p><strong>In Use:</strong> ${gpu.used_memory} / ${gpu.total_memory}</p>
+                                <div class="progress-container">
+                                    <div class="progress-bar" style="width:${utilization}%; background-color:${barColor};">
+                                        ${utilization}%
+                                    </div>
+                                </div>
+                            </div>`;
+                        });
+                    }
+
+                    serverDiv.innerHTML = content;
+                    container.appendChild(serverDiv);
+                }
+            } catch (error) {
+                console.error("Fail to fetch GPU Stats", error);
+            }
+        }
+
+        setInterval(fetchGPUStatus, 5000);  // 每 5 秒更新一次
+        window.onload = fetchGPUStatus;
+    </script>
+</head>
+<body>
+    <h1>GPU Server Monitoring</h1>
+    <div class="server-container" id="gpu-container">Loading...</div>
+</body>
+</html>
