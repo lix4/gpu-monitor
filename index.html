@@ -56,9 +56,8 @@
         }
     </style>
     <script>
-        // const API_URL = "http://localhost:5000/gpu_status";  // ⚠️ 替换为 Flask 服务器 IP
-        const API_URL = "https://gpu-monitor-api.onrender.com/gpu_status";  // 使用 HTTPS
-        console.log(API_URL)
+        // 后端 API 地址：改成你的后端地址
+        const API_URL = "https://gpu-monitor-api.onrender.com/gpu_status";
 
         async function fetchGPUStatus() {
             try {
@@ -76,15 +75,39 @@
                         content += `<p style="color: red;">${info.message}</p>`;
                     } else {
                         info.gpus.forEach(gpu => {
+                            // 解析 GPU 利用率
                             let utilization = parseInt(gpu.gpu_utilization);
-                            let barColor = utilization < 50 ? "#4CAF50" : utilization < 80 ? "#FFA500" : "#FF0000"; // 颜色：绿色 <50%，橙色 <80%，红色 >80%
+                            let barColorUtil = utilization < 50 ? "#4CAF50" : utilization < 80 ? "#FFA500" : "#FF0000"; 
+
+                            // ========== 新增内存占用进度条 ==========
+                            // gpu.used_memory / gpu.total_memory 都是带 "MB" 的字符串，如 "12345 MB"
+                            // 先用 parseInt 去掉 "MB" 后缀
+                            let usedMem = parseInt(gpu.used_memory);   // 使用内存(数字)
+                            let totalMem = parseInt(gpu.total_memory); // 总内存(数字)
+                            // 如果无法正确解析，就避免 NaN
+                            if (isNaN(usedMem) || isNaN(totalMem) || totalMem === 0) {
+                                usedMem = 0;
+                                totalMem = 1;
+                            }
+                            let memPercent = Math.round((usedMem / totalMem) * 100); 
+                            let barColorMem = memPercent < 50 ? "#4CAF50" : memPercent < 80 ? "#FFA500" : "#FF0000";
 
                             content += `
                             <div class="gpu-box">
                                 <p><strong>GPU:</strong> ${gpu.name}</p>
-                                <p><strong>In Use:</strong> ${gpu.used_memory} / ${gpu.total_memory}</p>
+
+                                <!-- 1) 内存占用进度条 -->
+                                <p><strong>Memory Usage:</strong> ${gpu.used_memory} / ${gpu.total_memory}</p>
                                 <div class="progress-container">
-                                    <div class="progress-bar" style="width:${utilization}%; background-color:${barColor};">
+                                    <div class="progress-bar" style="width:${memPercent}%; background-color:${barColorMem};">
+                                        ${memPercent}%
+                                    </div>
+                                </div>
+
+                                <!-- 2) GPU 利用率进度条 -->
+                                <p style="margin-top: 10px;"><strong>GPU Utilization:</strong> ${gpu.gpu_utilization}</p>
+                                <div class="progress-container">
+                                    <div class="progress-bar" style="width:${utilization}%; background-color:${barColorUtil};">
                                         ${utilization}%
                                     </div>
                                 </div>
